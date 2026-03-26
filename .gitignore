@@ -1,0 +1,5 @@
+*.pidb
+*.pdb
+*.mdb
+.DS_Store
+Thumbs.db

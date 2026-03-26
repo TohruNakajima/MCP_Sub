@@ -1,0 +1,37 @@
+{
+    "name": "TozawaMcpTools.Editor",
+    "rootNamespace": "",
+    "references": [
+        "UnityNaturalMCP.Editor",
+        "UniTask",
+        "WebGLVosk.Editor"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [
+        "ModelContextProtocol.dll",
+        "System.ComponentModel.Annotations.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "HAS_UNITASK",
+        "HAS_NMCP"
+    ],
+    "versionDefines": [
+        {
+            "name": "com.cysharp.unitask",
+            "expression": "",
+            "define": "HAS_UNITASK"
+        },
+        {
+            "name": "jp.notargs.unity-natural-mcp",
+            "expression": "",
+            "define": "HAS_NMCP"
+        }
+    ],
+    "noEngineReferences": false
+}
