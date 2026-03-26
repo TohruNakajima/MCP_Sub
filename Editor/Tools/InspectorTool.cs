@@ -65,6 +65,33 @@ internal sealed class InspectorTool
         }
     }
 
+    [McpServerTool, Description("Get mesh bounds information (size) from a GameObject with MeshFilter.")]
+    public async ValueTask<string> Ins_GetMeshBounds(
+        [Description("Path to the GameObject in hierarchy (e.g. 'Model/Mesh01') or InstanceID prefixed with '#' (e.g. '#12345').")]
+        string target)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            var go = GameObjectResolver.Resolve(target);
+            var meshFilter = go.GetComponent<MeshFilter>();
+            if (meshFilter == null)
+                throw new ArgumentException($"GameObject '{go.name}' does not have a MeshFilter component.");
+
+            if (meshFilter.sharedMesh == null)
+                throw new ArgumentException($"GameObject '{go.name}' MeshFilter has no mesh assigned.");
+
+            var bounds = meshFilter.sharedMesh.bounds;
+            return $"Mesh: {meshFilter.sharedMesh.name}\nBounds Center: {bounds.center}\nBounds Size: {bounds.size}\nBounds Extents: {bounds.extents}";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
+
     [McpServerTool, Description("Get all serialized properties of a specific component on a GameObject. Shows property names, types, and current values.")]
     public async ValueTask<string> Ins_GetComponentProperties(
         [Description("Path to the GameObject in hierarchy (e.g. 'Canvas/Button') or InstanceID prefixed with '#' (e.g. '#12345').")]
@@ -1380,6 +1407,100 @@ internal sealed class InspectorTool
             AssetDatabase.SaveAssets();
 
             return $"Successfully invoked {methodName}() on {assetPath}";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("Invoke a method with a single string argument on a ScriptableObject asset (e.g., ImportFromJSON on GrowthDatabase). Supports Undo.")]
+    public async ValueTask<string> Ins_InvokeAssetMethodWithStringArg(
+        [Description("Path to the asset (e.g. 'Assets/Model/GrowthDatabase.asset').")]
+        string assetPath,
+        [Description("Method name to invoke (e.g. 'ImportFromJSON').")]
+        string methodName,
+        [Description("String argument to pass to the method (e.g., JSON content or file path).")]
+        string argument)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                return $"Error: Asset not found at path: {assetPath}";
+            }
+
+            var method = asset.GetType().GetMethod(methodName,
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(string) },
+                null);
+
+            if (method == null)
+            {
+                return $"Error: Method '{methodName}(string)' not found on type {asset.GetType().Name}";
+            }
+
+            Undo.RecordObject(asset, $"Invoke {methodName}");
+            method.Invoke(asset, new object[] { argument });
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return $"Successfully invoked {methodName}(string) on {assetPath}";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
+
+    [McpServerTool, Description("Invoke ImportFromJSON on a GrowthDatabase by reading a JSON file. Supports Undo.")]
+    public async ValueTask<string> Ins_ImportJSONFromFile(
+        [Description("Path to the GrowthDatabase asset (e.g. 'Assets/Model/GrowthDatabase.asset').")]
+        string assetPath,
+        [Description("Path to the JSON file to import (e.g. 'D:/Tozawa_Unity/WoodSimulator/forest_growth_data.json').")]
+        string jsonFilePath)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            if (!System.IO.File.Exists(jsonFilePath))
+            {
+                return $"Error: JSON file not found at path: {jsonFilePath}";
+            }
+
+            var asset = AssetDatabase.LoadAssetAtPath<ScriptableObject>(assetPath);
+            if (asset == null)
+            {
+                return $"Error: Asset not found at path: {assetPath}";
+            }
+
+            var method = asset.GetType().GetMethod("ImportFromJSON",
+                System.Reflection.BindingFlags.Public |
+                System.Reflection.BindingFlags.Instance,
+                null,
+                new[] { typeof(string) },
+                null);
+
+            if (method == null)
+            {
+                return $"Error: Method 'ImportFromJSON(string)' not found on type {asset.GetType().Name}";
+            }
+
+            string jsonText = System.IO.File.ReadAllText(jsonFilePath);
+            Undo.RecordObject(asset, "Import JSON");
+            method.Invoke(asset, new object[] { jsonText });
+            EditorUtility.SetDirty(asset);
+            AssetDatabase.SaveAssets();
+
+            return $"Successfully imported JSON from {jsonFilePath} to {assetPath}";
         }
         catch (Exception e)
         {
