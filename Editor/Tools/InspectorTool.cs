@@ -556,7 +556,9 @@ internal sealed class InspectorTool
             // InstanceID形式: "#12345"
             if (target.StartsWith("#") && int.TryParse(target.Substring(1), out var instanceId))
             {
+#pragma warning disable CS0618
                 var obj = EditorUtility.InstanceIDToObject(instanceId) as GameObject;
+#pragma warning restore CS0618
                 if (obj == null)
                     throw new ArgumentException($"No GameObject found with InstanceID {instanceId}.");
                 return obj;
@@ -961,7 +963,9 @@ internal sealed class InspectorTool
                 // Check if this is an InstanceID reference (works for any UnityEngine.Object)
                 if (value.StartsWith("#") && int.TryParse(value.Substring(1), out var instanceId))
                 {
+#pragma warning disable CS0618
                     var obj = EditorUtility.InstanceIDToObject(instanceId);
+#pragma warning restore CS0618
                     if (obj == null)
                         throw new ArgumentException($"No object found with InstanceID {instanceId}.");
                     prop.objectReferenceValue = obj;
