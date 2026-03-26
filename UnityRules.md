@@ -51,18 +51,10 @@ curl -X POST http://localhost:56780/mcp/ -H "Content-Type: application/json" -d 
 - Proj_* (シーン/アセット操作)
 - ExecuteMenuItem (メニュー実行)
 
-## MCPツール作成・更新時の必須手順
-原則禁止・提案制。既存確認→ユーザー許可→作成→コンパイル確認待ち→RefreshAssets→登録確認
-
-### サブモジュール運用ルール（厳守）
-- **サブモジュールリポジトリ**: https://github.com/TohruNakajima/MCP_Sub.git
-- **重要**: MCPツールの改良・更新・新規作成時は必ずサブモジュールに反映
-- **手順**:
-  1. プロジェクトのAssets/TozawaMCPディレクトリでツール修正
-  2. サブモジュールディレクトリ内でcommit: `cd Assets/TozawaMCP && git add . && git commit -m "説明"`
-  3. サブモジュールをpush: `git push origin main`
-  4. プロジェクトルートに戻り、サブモジュール参照を更新してcommit
-- **禁止**: サブモジュール外でのMCPツール直接編集
+## MCPツール作成・更新
+原則禁止・提案制。既存確認→ユーザー許可→作成→コンパイル確認→RefreshAssets→登録確認
+更新時: `cd Assets/TozawaMCP && git add . && git commit -m "説明" && git push origin main`後、プロジェクトルートでサブモジュール参照commit
+サブモジュールリポジトリ: https://github.com/TohruNakajima/MCP_Sub.git
 
 ## プロジェクト
 - shrine_adventure: D:\Hirata_Unity\shrine_adventure (Unity 6+URP, 宴4.2.6, ポート56780)

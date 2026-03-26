@@ -1,17 +1,9 @@
 # カスタムMCPツール一覧
 
-**ポート**: shrine_adventure/川のやつ/WoodSimulator=56780
+**ポート**: 56780 | **サブモジュール**: https://github.com/TohruNakajima/MCP_Sub.git
 
-## サブモジュール情報
-- **リポジトリ**: https://github.com/TohruNakajima/MCP_Sub.git
-- **重要**: ツール更新時は必ずサブモジュールに反映（詳細はUnityRules.md参照）
-
-## 重要ルール
-- ❌ **手動作業の提案・依頼は絶対禁止（全てMCPツールで完結させる）**
-- ❌ **TextMeshPro使用禁止（ユーザー明示指示がない限り旧UI（InputField/Text/Button）使用厳守）**
-- ❌ **バッチビルド実行（-batchmode -quit）絶対禁止（Unity Editor GUI上で手動ビルドのみ許可）**
-- ❌ **APIキー・機密情報のGitコミット絶対禁止（.gitignore必須確認）**
-- ❌ **サブモジュール外でのMCPツール直接編集禁止**
+## 禁止事項
+- 手動作業提案 | TextMeshPro使用 | バッチビルド | API情報commit | サブモジュール外編集
 
 ## Inspector操作
 - Ins_InvokeAssetMethod: アセットメソッド呼び出し
