@@ -182,4 +182,36 @@ internal sealed class UISetupTool
             return $"Error: {e.Message}";
         }
     }
+
+    [McpServerTool, Description("Update text of a Button's Text child component.")]
+    public async ValueTask<string> UpdateButtonText(
+        [Description("Path to the Button GameObject (e.g., 'Canvas/Panel/PlayButton')")]
+        string buttonPath,
+        [Description("New text to display (e.g., '再生開始')")]
+        string newText)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            GameObject buttonObj = InspectorTool.GameObjectResolver.Resolve(buttonPath);
+            Text textComponent = buttonObj.GetComponentInChildren<Text>();
+
+            if (textComponent == null)
+            {
+                return $"Error: No Text component found in children of '{buttonPath}'.";
+            }
+
+            Undo.RecordObject(textComponent, "Update Button Text");
+            textComponent.text = newText;
+            EditorUtility.SetDirty(textComponent);
+
+            return $"Successfully updated text to '{newText}' on '{buttonPath}'.";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            return $"Error: {e.Message}";
+        }
+    }
 }
