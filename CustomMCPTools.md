@@ -22,6 +22,12 @@
 - ExecuteMenuItem: メニュー実行
 - CreateUtageProject: 宴プロジェクト作成
 
+## Hierarchy操作
+- Hier_ListAllGameObjects: 全GameObject列挙（InstanceID、階層構造表示）
+- Hier_DeleteAllUnnamedGameObjects: 空名前GameObject一括削除（Undo対応）
+- Hier_DeleteByInstanceID: InstanceID指定削除（Undo対応）
+- Hier_SetParent: 親子関係設定（ドラッグ&ドロップ相当）
+
 ## GameObject/Component
 - AttachScriptToObject: Component追加
 - RemoveScriptFromObject: Component削除
