@@ -242,7 +242,7 @@ internal sealed class ProjectTool
             if (int.TryParse(path.Substring(1), out int instanceId))
             {
 #if UNITY_6000_0_OR_NEWER
-                var obj = EditorUtility.InstanceIDToObject(instanceId);
+                var obj = EditorUtility.EntityIdToObject(instanceId);
 #else
                 var obj = EditorUtility.InstanceIDToObject(instanceId);
 #endif
