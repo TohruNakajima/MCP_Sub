@@ -59,7 +59,7 @@ curl -X POST http://localhost:56780/mcp/ -H "Content-Type: application/json" -d 
 ## プロジェクト
 - shrine_adventure: D:\Hirata_Unity\shrine_adventure (Unity 6+URP, 宴4.2.6, ポート56780)
 - 川のやつ: C:\Users\Simna\KWS2 DynamicWaterAsset (ポート56780)
-- WoodSimulator: D:\Tozawa_Unity\WoodSimulator (Unity, シーン: Assets/Scenes/LikeaDeemo.unity, ポート56780)
+- 杉のやつ: D:\Tozawa_Unity\WoodSimulator (Unity, シーン: Assets/Scenes/LikeaDeemo.unity, ポート56782, リポジトリ: https://github.com/TohruNakajima/WoodSimulator.git)
 
 ## 過去の失敗
 - Assembly Definition汚染

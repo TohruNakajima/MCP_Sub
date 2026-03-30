@@ -37,12 +37,6 @@
 - Anim_SetCurve: AnimationClipにキーフレーム追加
 - Anim_AddEvent: AnimationEvent追加
 
-## Prefab操作
-- CreateTreePrefabFromFBX: FBXから6段階メッシュPrefab作成
-
-## UI操作
-- SetButtonTargetGraphic: ButtonのTargetGraphicを自動設定
-
 ## その他
 - RefreshAssets: アセット更新
 - GetCurrentConsoleLogs: ログ取得
