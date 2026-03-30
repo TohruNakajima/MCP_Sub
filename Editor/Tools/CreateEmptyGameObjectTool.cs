@@ -32,7 +32,7 @@ internal sealed class CreateEmptyGameObjectTool
             }
 
             Undo.RegisterCreatedObjectUndo(gameObject, $"Create Empty GameObject '{name}'");
-            return $"Created empty GameObject: '{gameObject.name}' (InstanceID: {gameObject.GetInstanceID()})";
+            return $"Created empty GameObject: '{gameObject.name}' (InstanceID: {gameObject.GetEntityId()})";
         }
         catch (Exception e)
         {

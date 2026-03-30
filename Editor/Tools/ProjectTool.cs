@@ -242,7 +242,9 @@ internal sealed class ProjectTool
             if (int.TryParse(path.Substring(1), out int instanceId))
             {
 #if UNITY_6000_0_OR_NEWER
+#pragma warning disable CS0618
                 var obj = EditorUtility.EntityIdToObject(instanceId);
+#pragma warning restore CS0618
 #else
                 var obj = EditorUtility.InstanceIDToObject(instanceId);
 #endif

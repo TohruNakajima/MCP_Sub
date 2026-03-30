@@ -532,7 +532,7 @@ internal sealed class InspectorTool
             // Register Undo
             Undo.RegisterCreatedObjectUndo(instance, $"Instantiate Prefab '{prefabPath}'");
 
-            return $"Instantiated Prefab '{prefabPath}' as '{instance.name}' (ID: {instance.GetInstanceID()}).";
+            return $"Instantiated Prefab '{prefabPath}' as '{instance.name}' (ID: {instance.GetEntityId()}).";
         }
         catch (Exception e)
         {
@@ -583,9 +583,13 @@ internal sealed class InspectorTool
             // InstanceID形式: "#12345"
             if (target.StartsWith("#") && int.TryParse(target.Substring(1), out var instanceId))
             {
+#if UNITY_6000_0_OR_NEWER
 #pragma warning disable CS0618
-                var obj = EditorUtility.InstanceIDToObject(instanceId) as GameObject;
+                var obj = EditorUtility.EntityIdToObject(instanceId) as GameObject;
 #pragma warning restore CS0618
+#else
+                var obj = EditorUtility.InstanceIDToObject(instanceId) as GameObject;
+#endif
                 if (obj == null)
                     throw new ArgumentException($"No GameObject found with InstanceID {instanceId}.");
                 return obj;
@@ -990,9 +994,13 @@ internal sealed class InspectorTool
                 // Check if this is an InstanceID reference (works for any UnityEngine.Object)
                 if (value.StartsWith("#") && int.TryParse(value.Substring(1), out var instanceId))
                 {
+#if UNITY_6000_0_OR_NEWER
 #pragma warning disable CS0618
-                    var obj = EditorUtility.InstanceIDToObject(instanceId);
+                    var obj = EditorUtility.EntityIdToObject(instanceId);
 #pragma warning restore CS0618
+#else
+                    var obj = EditorUtility.InstanceIDToObject(instanceId);
+#endif
                     if (obj == null)
                         throw new ArgumentException($"No object found with InstanceID {instanceId}.");
                     prop.objectReferenceValue = obj;
@@ -1200,7 +1208,7 @@ internal sealed class InspectorTool
             var childCount = go.transform.childCount;
             var childInfo = childCount > 0 ? $" ({childCount} children)" : "";
 
-            sb.AppendLine($"{indent}- {go.name} [ID:{go.GetInstanceID()}]{activeMarker}{childInfo}");
+            sb.AppendLine($"{indent}- {go.name} [ID:{go.GetEntityId()}]{activeMarker}{childInfo}");
 
             if (currentDepth < maxDepth)
             {
@@ -1216,7 +1224,7 @@ internal sealed class InspectorTool
     private sealed class GameObjectInfo
     {
         public string Name;
-        public int InstanceID;
+        public EntityId InstanceID;
         public bool ActiveSelf;
         public bool ActiveInHierarchy;
         public string Tag;
@@ -1231,13 +1239,13 @@ internal sealed class InspectorTool
             for (int i = 0; i < go.transform.childCount; i++)
             {
                 var child = go.transform.GetChild(i);
-                children[i] = $"{child.name} [ID:{child.gameObject.GetInstanceID()}]";
+                children[i] = $"{child.name} [ID:{child.gameObject.GetEntityId()}]";
             }
 
             return new GameObjectInfo
             {
                 Name = go.name,
-                InstanceID = go.GetInstanceID(),
+                InstanceID = go.GetEntityId(),
                 ActiveSelf = go.activeSelf,
                 ActiveInHierarchy = go.activeInHierarchy,
                 Tag = go.tag,
