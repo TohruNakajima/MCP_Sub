@@ -51,7 +51,7 @@ internal sealed class HierarchyTool
     {
         string indent = new string(' ', depth * 2);
         string name = string.IsNullOrEmpty(go.name) ? "<empty>" : go.name;
-        sb.AppendLine($"{indent}[{go.GetInstanceID()}] {name} (Active: {go.activeSelf})");
+        sb.AppendLine($"{indent}[{go.GetEntityId()}] {name} (Active: {go.activeSelf})");
 
         foreach (Transform child in go.transform)
         {
