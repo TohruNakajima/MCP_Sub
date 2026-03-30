@@ -12,7 +12,7 @@ using UnityEngine;
 [McpServerToolType, Description("Create prefabs from models")]
 internal sealed class PrefabCreationTool
 {
-    [McpServerTool, Description("Create a tree prefab with 6 age-specific child meshes from FBX model. Creates Age10_SmallTree through Age100_AncientTree children.")]
+    [McpServerTool, Description("Create a tree prefab with 6 age-specific child meshes from FBX model. Creates Age10_SmallTree through Age100_AncientTree children with size-sorted mesh assignment.")]
     public async ValueTask<string> CreateTreePrefabFromFBX(
         [Description("Path to the FBX model asset (e.g., 'Assets/Model/BC_PM_P02_japanese_cedar.fbx')")]
         string fbxPath,
@@ -35,7 +35,9 @@ internal sealed class PrefabCreationTool
             // 親GameObjectを作成
             GameObject parent = new GameObject(parentName);
 
-            // FBXから6つのインスタンスを作成し、それぞれ異なる名前をつけて子として追加
+            // FBX内の個別メッシュをサイズ順（高さ順）に割り当て
+            // mesh_bounds.jsonより: 01(3.72m) < 03(3.80m) < 05(3.90m) < 04(3.97m) < 06(4.36m) < 02(4.75m)
+            string[] meshIndices = new string[] { "01", "03", "05", "04", "06", "02" };
             string[] ageNames = new string[]
             {
                 "Age10_SmallTree",
@@ -46,14 +48,21 @@ internal sealed class PrefabCreationTool
                 "Age100_AncientTree"
             };
 
-            foreach (string ageName in ageNames)
+            for (int i = 0; i < ageNames.Length; i++)
             {
                 GameObject child = GameObject.Instantiate(fbxModel);
-                child.name = ageName;
+                child.name = ageNames[i];
                 child.transform.SetParent(parent.transform, false);
 
+                // FBX内の特定メッシュのみを有効化（BC_PM_P02_japanese_cedar_XX）
+                string targetMeshName = $"BC_PM_P02_japanese_cedar_{meshIndices[i]}";
+                foreach (Transform meshChild in child.transform)
+                {
+                    meshChild.gameObject.SetActive(meshChild.name == targetMeshName);
+                }
+
                 // 最初以外は非アクティブにする
-                child.SetActive(ageName == "Age10_SmallTree");
+                child.SetActive(ageNames[i] == "Age10_SmallTree");
             }
 
             // Prefabとして保存
