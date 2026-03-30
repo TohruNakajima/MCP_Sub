@@ -65,7 +65,7 @@ internal sealed class InspectorTool
         }
     }
 
-    [McpServerTool, Description("Get mesh bounds information (size) from a GameObject with MeshFilter.")]
+    [McpServerTool, Description("Get mesh bounds information (size) from a GameObject. Searches MeshFilter on the target and its children recursively, returns combined bounds.")]
     public async ValueTask<string> Ins_GetMeshBounds(
         [Description("Path to the GameObject in hierarchy (e.g. 'Model/Mesh01') or InstanceID prefixed with '#' (e.g. '#12345').")]
         string target)
@@ -75,15 +75,25 @@ internal sealed class InspectorTool
             await UniTask.SwitchToMainThread();
 
             var go = GameObjectResolver.Resolve(target);
+
+            // ルートにMeshFilterがあればそれを使用
             var meshFilter = go.GetComponent<MeshFilter>();
-            if (meshFilter == null)
-                throw new ArgumentException($"GameObject '{go.name}' does not have a MeshFilter component.");
+            if (meshFilter != null && meshFilter.sharedMesh != null)
+            {
+                var b = meshFilter.sharedMesh.bounds;
+                return $"Mesh: {meshFilter.sharedMesh.name}\nBounds Center: {b.center}\nBounds Size: {b.size}\nBounds Extents: {b.extents}";
+            }
 
-            if (meshFilter.sharedMesh == null)
-                throw new ArgumentException($"GameObject '{go.name}' MeshFilter has no mesh assigned.");
+            // 子を再帰検索してRendererの合成バウンズを返す
+            var renderers = go.GetComponentsInChildren<Renderer>();
+            if (renderers.Length == 0)
+                throw new ArgumentException($"GameObject '{go.name}' and its children have no Renderer components.");
 
-            var bounds = meshFilter.sharedMesh.bounds;
-            return $"Mesh: {meshFilter.sharedMesh.name}\nBounds Center: {bounds.center}\nBounds Size: {bounds.size}\nBounds Extents: {bounds.extents}";
+            var combined = renderers[0].bounds;
+            for (int i = 1; i < renderers.Length; i++)
+                combined.Encapsulate(renderers[i].bounds);
+
+            return $"Combined Bounds ({renderers.Length} renderers)\nBounds Center: {combined.center}\nBounds Size: {combined.size}\nBounds Extents: {combined.extents}";
         }
         catch (Exception e)
         {
@@ -493,14 +503,22 @@ internal sealed class InspectorTool
         }
     }
 
-    [McpServerTool, Description("Instantiate a Prefab into the scene hierarchy. Supports Undo.")]
+    [McpServerTool, Description("Instantiate a Prefab into the scene hierarchy with optional position. Supports Undo.")]
     public async ValueTask<string> Ins_InstantiatePrefab(
         [Description("Path to the Prefab asset (e.g. 'Assets/Prefabs/MyPrefab.prefab').")]
         string prefabPath,
         [Description("Optional name for the instantiated GameObject. If not specified, uses the Prefab's name.")]
         string name = null,
         [Description("Optional parent GameObject path (e.g. 'Canvas/Panel'). If not specified, instantiates at scene root.")]
-        string parentPath = null)
+        string parentPath = null,
+        [Description("World position X. Default: 0.")]
+        float positionX = 0f,
+        [Description("World position Y. Default: 0.")]
+        float positionY = 0f,
+        [Description("World position Z. Default: 0.")]
+        float positionZ = 0f,
+        [Description("Rotation Y in degrees. Default: 0.")]
+        float rotationY = 0f)
     {
         try
         {
@@ -529,10 +547,16 @@ internal sealed class InspectorTool
                 instance.transform.SetParent(parent.transform, false);
             }
 
+            // Set position and rotation
+            instance.transform.position = new Vector3(positionX, positionY, positionZ);
+            if (rotationY != 0f)
+                instance.transform.rotation = Quaternion.Euler(0f, rotationY, 0f);
+
             // Register Undo
             Undo.RegisterCreatedObjectUndo(instance, $"Instantiate Prefab '{prefabPath}'");
 
-            return $"Instantiated Prefab '{prefabPath}' as '{instance.name}' (ID: {instance.GetEntityId()}).";
+            var pos = instance.transform.position;
+            return $"Instantiated Prefab '{prefabPath}' as '{instance.name}' (ID: {instance.GetEntityId()}) at ({pos.x:F2}, {pos.y:F2}, {pos.z:F2}).";
         }
         catch (Exception e)
         {
