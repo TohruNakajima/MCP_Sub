@@ -43,6 +43,22 @@
 - Anim_SetCurve: AnimationClipにキーフレーム追加
 - Anim_AddEvent: AnimationEvent追加
 
+## UI要素作成
+- CreateSlider: Slider作成（Background/Fill/Handle完全構造）
+- CreateLegacyButton: Button作成（Image+Text付き）
+- SetButtonTargetGraphic: ButtonのTargetGraphic設定
+- AddButtonText: Button子要素にText追加
+- UpdateButtonText: ButtonのText更新
+
+## Prefab操作
+- Prefab_Instantiate: Edit ModeでPrefabをシーンにインスタンス化
+
+## GameObject/Component
+- AttachScriptToObject: Component追加
+- RemoveScriptFromObject: Component削除
+- SetComponentField: フィールド設定
+- ListComponentFields: フィールド一覧
+
 ## その他
 - RefreshAssets: アセット更新
 - GetCurrentConsoleLogs: ログ取得
