@@ -1540,4 +1540,97 @@ internal sealed class InspectorTool
             throw;
         }
     }
+
+    [McpServerTool, Description("Set a Material asset property value (e.g. _GlobalAlpha, _Color). Supports float, int, and Color properties. Supports Undo.")]
+    public async ValueTask<string> Ins_SetMaterialProperty(
+        [Description("Path to the Material asset (e.g. 'Assets/Material/MyMaterial.mat').")]
+        string assetPath,
+        [Description("Property name (e.g. '_GlobalAlpha', '_Color', '_MainColor').")]
+        string propertyName,
+        [Description("Value to set. For float/int: '1' or '0.5'. For Color: 'r,g,b,a' like '1,1,1,0'.")]
+        string value)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            var material = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+            if (material == null)
+            {
+                throw new InvalidOperationException($"Material not found at path: {assetPath}");
+            }
+
+            // Use SerializedObject for reliable saving
+            var serializedMaterial = new SerializedObject(material);
+            Undo.RecordObject(material, $"Set Material Property {propertyName}");
+
+            // Try float first
+            if (float.TryParse(value, out float floatValue))
+            {
+                // Search in m_Floats array
+                var floatsArray = serializedMaterial.FindProperty("m_SavedProperties.m_Floats.Array");
+                if (floatsArray != null)
+                {
+                    for (int i = 0; i < floatsArray.arraySize; i++)
+                    {
+                        var element = floatsArray.GetArrayElementAtIndex(i);
+                        var nameProp = element.FindPropertyRelative("first");
+                        if (nameProp != null && nameProp.stringValue == propertyName)
+                        {
+                            var valueProp = element.FindPropertyRelative("second");
+                            if (valueProp != null)
+                            {
+                                valueProp.floatValue = floatValue;
+                                serializedMaterial.ApplyModifiedProperties();
+                                EditorUtility.SetDirty(material);
+                                AssetDatabase.SaveAssets();
+                                AssetDatabase.Refresh();
+                                return $"Set {propertyName} = {floatValue} on '{material.name}'";
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Try Color format
+            var parts = value.Split(',');
+            if (parts.Length == 4 &&
+                float.TryParse(parts[0], out float r) &&
+                float.TryParse(parts[1], out float g) &&
+                float.TryParse(parts[2], out float b) &&
+                float.TryParse(parts[3], out float a))
+            {
+                // Search in m_Colors array
+                var colorsArray = serializedMaterial.FindProperty("m_SavedProperties.m_Colors.Array");
+                if (colorsArray != null)
+                {
+                    for (int i = 0; i < colorsArray.arraySize; i++)
+                    {
+                        var element = colorsArray.GetArrayElementAtIndex(i);
+                        var nameProp = element.FindPropertyRelative("first");
+                        if (nameProp != null && nameProp.stringValue == propertyName)
+                        {
+                            var valueProp = element.FindPropertyRelative("second");
+                            if (valueProp != null)
+                            {
+                                valueProp.colorValue = new Color(r, g, b, a);
+                                serializedMaterial.ApplyModifiedProperties();
+                                EditorUtility.SetDirty(material);
+                                AssetDatabase.SaveAssets();
+                                AssetDatabase.Refresh();
+                                return $"Set {propertyName} = ({r},{g},{b},{a}) on '{material.name}'";
+                            }
+                        }
+                    }
+                }
+            }
+
+            throw new InvalidOperationException($"Property '{propertyName}' not found in material or unsupported value format: {value}");
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
 }
