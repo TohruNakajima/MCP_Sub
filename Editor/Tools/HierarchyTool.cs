@@ -186,4 +186,41 @@ internal sealed class HierarchyTool
             throw;
         }
     }
+
+    [McpServerTool, Description("Set the sibling index of a GameObject in the Hierarchy. Changes the order of children under the same parent.")]
+    public async ValueTask<string> Hier_SetSiblingIndex(
+        [Description("InstanceID of the GameObject (e.g., 51188, without '#' prefix)")]
+        int instanceId,
+        [Description("The new sibling index (0-based). 0 means first child.")]
+        int siblingIndex)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+#pragma warning disable CS0618
+            var obj = EditorUtility.InstanceIDToObject(instanceId);
+#pragma warning restore CS0618
+
+            if (obj == null)
+                throw new ArgumentException($"No object found with InstanceID {instanceId}.");
+
+            var go = obj as GameObject;
+            if (go == null)
+                throw new ArgumentException($"Object with InstanceID {instanceId} is not a GameObject (type: {obj.GetType().Name}).");
+
+            // Record Undo
+            Undo.RecordObject(go.transform, "Set Sibling Index");
+
+            // Set sibling index
+            go.transform.SetSiblingIndex(siblingIndex);
+
+            return $"Set '{go.name}' siblingIndex to {siblingIndex}.";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
 }
