@@ -27,6 +27,7 @@
 - Hier_DeleteAllUnnamedGameObjects: 空名前GameObject一括削除（Undo対応）
 - Hier_DeleteByInstanceID: InstanceID指定削除（Undo対応）
 - Hier_SetParent: 親子関係設定（ドラッグ&ドロップ相当）
+- Hier_SetSiblingIndex: GameObject順序変更（同一親配下での並び替え、Undo対応）
 
 ## GameObject/Component
 - AttachScriptToObject: Component追加
