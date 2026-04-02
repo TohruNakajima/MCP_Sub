@@ -1633,4 +1633,64 @@ internal sealed class InspectorTool
             throw;
         }
     }
+
+    [McpServerTool, Description("Set a property value on multiple GameObjects matching a name pattern (e.g. 'SingleTreeSimulator_*'). Supports Undo.")]
+    public async ValueTask<string> Ins_SetPropertyValueBulk(
+        [Description("Name pattern (e.g. 'SingleTreeSimulator_*' to match SingleTreeSimulator_0001, SingleTreeSimulator_0002, etc.).")]
+        string namePattern,
+        [Description("Component type name (e.g. 'Transform', 'SingleTreeUI').")]
+        string component,
+        [Description("The serialized property path (e.g. 'forestManager').")]
+        string propertyPath,
+        [Description("The value to set. For ObjectReference, use GameObject name (e.g. 'SingleTreeSimulator').")]
+        string value)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            var scene = SceneManager.GetActiveScene();
+            var allObjects = scene.GetRootGameObjects();
+            var matchedObjects = new List<GameObject>();
+
+            // パターンマッチング (簡易版: * をワイルドカードとして扱う)
+            string regexPattern = "^" + System.Text.RegularExpressions.Regex.Escape(namePattern).Replace("\\*", ".*") + "$";
+            var regex = new System.Text.RegularExpressions.Regex(regexPattern);
+
+            foreach (var root in allObjects)
+            {
+                if (regex.IsMatch(root.name))
+                {
+                    matchedObjects.Add(root);
+                }
+            }
+
+            if (matchedObjects.Count == 0)
+            {
+                return $"No GameObjects found matching pattern: {namePattern}";
+            }
+
+            int successCount = 0;
+            foreach (var go in matchedObjects)
+            {
+                try
+                {
+                    var comp = ComponentResolver.Resolve(go, component);
+                    PropertyAccessor.WriteProperty(comp, propertyPath, value);
+                    successCount++;
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogWarning($"Failed to set property on {go.name}: {ex.Message}");
+                }
+            }
+
+            return $"Set {component}.{propertyPath} = {value} on {successCount}/{matchedObjects.Count} GameObjects matching '{namePattern}'";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            throw;
+        }
+    }
 }

@@ -82,6 +82,21 @@ internal sealed class ForestPlantingTool
                 instance.transform.position = position;
                 instance.name = $"SingleTreeSimulator_{i + 1:D4}";
 
+                // Set treeIndex (starting from 1, center tree is 0) using reflection
+                System.Type singleTreeGrowthType = System.Type.GetType("WoodSimulator.SingleTreeGrowth, Assembly-CSharp");
+                if (singleTreeGrowthType != null)
+                {
+                    var singleTreeGrowth = instance.GetComponent(singleTreeGrowthType);
+                    if (singleTreeGrowth != null)
+                    {
+                        var treeIndexField = singleTreeGrowthType.GetField("treeIndex");
+                        if (treeIndexField != null)
+                        {
+                            treeIndexField.SetValue(singleTreeGrowth, i + 1);
+                        }
+                    }
+                }
+
                 // Register Undo
                 Undo.RegisterCreatedObjectUndo(instance, "Plant Tree");
 
