@@ -235,6 +235,9 @@ internal sealed class TerrainTextureTool
                 tex.Apply();
                 EditorUtility.SetDirty(tex);
             }
+            existingLayer.smoothness = 0f;
+            existingLayer.metallic = 0f;
+            EditorUtility.SetDirty(existingLayer);
             return existingLayer;
         }
 
@@ -260,6 +263,8 @@ internal sealed class TerrainTextureTool
         layer.diffuseTexture = texture;
         layer.tileSize = new Vector2(5f, 5f);
         layer.tileOffset = Vector2.zero;
+        layer.smoothness = 0f;
+        layer.metallic = 0f;
         AssetDatabase.CreateAsset(layer, layerPath);
 
         AssetDatabase.SaveAssets();
