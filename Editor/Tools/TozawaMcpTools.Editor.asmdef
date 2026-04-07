@@ -3,8 +3,7 @@
     "rootNamespace": "",
     "references": [
         "UnityNaturalMCP.Editor",
-        "UniTask",
-        "WebGLVosk.Editor"
+        "UniTask"
     ],
     "includePlatforms": [
         "Editor"

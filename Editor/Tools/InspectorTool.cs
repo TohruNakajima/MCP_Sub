@@ -1496,7 +1496,7 @@ internal sealed class InspectorTool
     public async ValueTask<string> Ins_ImportJSONFromFile(
         [Description("Path to the GrowthDatabase asset (e.g. 'Assets/Model/GrowthDatabase.asset').")]
         string assetPath,
-        [Description("Path to the JSON file to import (e.g. 'D:/Tozawa_Unity/WoodSimulator/forest_growth_data.json').")]
+        [Description("Path to the JSON file to import (e.g. 'Assets/Data/config.json').")]
         string jsonFilePath)
     {
         try
