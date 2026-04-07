@@ -3,9 +3,10 @@ using UnityEditor;
 using UnityEngine;
 
 /// <summary>
-/// Automatically adds required package references (UniTask, UnityNaturalMCP) to manifest.json
+/// Automatically adds required package references (UniTask) to manifest.json
 /// when the Unity Editor starts. This script runs once via [InitializeOnLoadMethod] and skips
 /// if the packages are already present.
+/// NMCP is now bundled directly in the TozawaMCP submodule and no longer requires a package reference.
 /// </summary>
 [InitializeOnLoad]
 internal static class McpPackageInstaller
@@ -13,10 +14,10 @@ internal static class McpPackageInstaller
     private const string UniTaskPackageId = "com.cysharp.unitask";
     private const string UniTaskUrl = "https://github.com/Cysharp/UniTask.git?path=src/UniTask/Assets/Plugins/UniTask";
 
-    private const string NmcpPackageId = "jp.notargs.unity-natural-mcp";
-    private const string NmcpUrl = "https://github.com/nakagimadevelop002-glitch/UnityNaturalMCP.git?path=/UnityNaturalMCPServer";
-
     private const string NuGetForUnityPackageId = "com.github-glitchenzo.nugetforunity";
+
+    // 旧パッケージ参照（サブモジュール統合済みのため自動削除対象）
+    private const string OldNmcpPackageId = "jp.notargs.unity-natural-mcp";
 
     static McpPackageInstaller()
     {
@@ -52,12 +53,19 @@ internal static class McpPackageInstaller
             Debug.Log("[McpPackageInstaller] Added UniTask to manifest.json");
         }
 
-        // Add forked UnityNaturalMCP if not present
-        if (!json.Contains(NmcpPackageId))
+        // Remove old NMCP package reference if still present (now bundled in submodule)
+        if (json.Contains(OldNmcpPackageId))
         {
-            json = AddPackageToManifest(json, NmcpPackageId, NmcpUrl);
+            var lines = json.Split('\n');
+            var filtered = new System.Text.StringBuilder();
+            foreach (var line in lines)
+            {
+                if (!line.Contains(OldNmcpPackageId))
+                    filtered.AppendLine(line);
+            }
+            json = filtered.ToString().TrimEnd() + "\n";
             modified = true;
-            Debug.Log("[McpPackageInstaller] Added UnityNaturalMCP (fork) to manifest.json");
+            Debug.Log("[McpPackageInstaller] Removed old NMCP package reference (now bundled in TozawaMCP submodule)");
         }
 
         if (modified)

@@ -17,19 +17,13 @@
     ],
     "autoReferenced": true,
     "defineConstraints": [
-        "HAS_UNITASK",
-        "HAS_NMCP"
+        "HAS_UNITASK"
     ],
     "versionDefines": [
         {
             "name": "com.cysharp.unitask",
             "expression": "",
             "define": "HAS_UNITASK"
-        },
-        {
-            "name": "jp.notargs.unity-natural-mcp",
-            "expression": "",
-            "define": "HAS_NMCP"
         }
     ],
     "noEngineReferences": false
