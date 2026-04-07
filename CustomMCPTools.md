@@ -1,9 +1,6 @@
 # カスタムMCPツール一覧
 
-**ポート**: 56780 | **サブモジュール**: https://github.com/TohruNakajima/MCP_Sub.git
-
-## 禁止事項
-- 手動作業提案 | TextMeshPro使用 | バッチビルド | API情報commit | サブモジュール外編集
+**サブモジュール**: https://github.com/TohruNakajima/MCP_Sub.git
 
 ## Inspector操作
 - Ins_InvokeAssetMethod: アセットメソッド呼び出し
@@ -20,7 +17,6 @@
 
 ## メニュー操作
 - ExecuteMenuItem: メニュー実行
-- CreateUtageProject: 宴プロジェクト作成
 
 ## Hierarchy操作
 - Hier_ListAllGameObjects: 全GameObject列挙（InstanceID、階層構造表示）
@@ -54,11 +50,14 @@
 ## Prefab操作
 - Prefab_Instantiate: Edit ModeでPrefabをシーンにインスタンス化
 
-## GameObject/Component
-- AttachScriptToObject: Component追加
-- RemoveScriptFromObject: Component削除
-- SetComponentField: フィールド設定
-- ListComponentFields: フィールド一覧
+## Terrain操作
+- Terrain_GetInfo: Terrain情報取得
+- Terrain_SetPerlinHeight: Perlinノイズ地形生成
+- Terrain_CarveRiver: 川床彫刻
+- Terrain_Smooth: 地形スムース
+- Terrain_FlattenArea: 平坦化
+- Terrain_AutoPaint: 自動テクスチャ塗り分け
+- Terrain_AddGrass: 草自動生成
 
 ## その他
 - RefreshAssets: アセット更新

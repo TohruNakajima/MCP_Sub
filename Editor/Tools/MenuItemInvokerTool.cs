@@ -16,11 +16,11 @@ namespace TozawaMCP.Editor.Tools
         /// <summary>
         /// 指定されたメニューパスのメニューアイテムを実行する
         /// </summary>
-        /// <param name="menuPath">メニューパス（例: "Tools/Utage/New Project", "File/Save", "Edit/Undo"）</param>
+        /// <param name="menuPath">メニューパス（例: "Window/General/Console", "File/Save", "Edit/Undo"）</param>
         /// <returns>実行結果メッセージ</returns>
         [McpServerTool, Description("Execute Unity Editor menu item by menu path")]
         public async ValueTask<string> ExecuteMenuItem(
-            [Description("Menu path (e.g., 'Tools/Utage/New Project', 'File/Save', 'Edit/Undo')")]
+            [Description("Menu path (e.g., 'Window/General/Console', 'File/Save', 'Edit/Undo')")]
             string menuPath)
         {
             await UniTask.SwitchToMainThread();
