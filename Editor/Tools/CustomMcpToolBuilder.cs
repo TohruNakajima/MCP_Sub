@@ -34,6 +34,7 @@ public class CustomMcpToolBuilder : McpBuilderScriptableObject
             {
                 var genericMethod = withToolsMethod.MakeGenericMethod(toolType);
                 genericMethod.Invoke(null, new object[] { builder, null });
+                Debug.Log($"[CustomMcpToolBuilder] Registered: {toolType.Name}");
             }
             catch (Exception e)
             {

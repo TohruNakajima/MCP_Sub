@@ -89,4 +89,55 @@ internal sealed class PrefabCreationTool
             return $"Error creating tree prefab: {e.Message}";
         }
     }
+
+    [McpServerTool, Description("Save a GameObject in the active scene as a new prefab asset. The GameObject stays in the scene.")]
+    public async ValueTask<string> SaveGameObjectAsPrefab(
+        [Description("Path to the GameObject in hierarchy (e.g. 'Canvas/Button') or InstanceID prefixed with '#' (e.g. '#12345').")]
+        string target,
+        [Description("Output prefab path (e.g., 'Assets/Prefabs/MyPrefab.prefab'). Directory is created if missing.")]
+        string prefabPath)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+
+            // GameObjectを検索（InstanceID or パス）
+            GameObject go = null;
+            if (target.StartsWith("#"))
+            {
+                if (int.TryParse(target.Substring(1), out int id))
+                    go = EditorUtility.InstanceIDToObject(id) as GameObject;
+            }
+            else
+            {
+                go = GameObject.Find(target);
+            }
+
+            if (go == null)
+                return $"Error: GameObject not found: {target}";
+
+            // ディレクトリ作成
+            string directory = System.IO.Path.GetDirectoryName(prefabPath);
+            if (!string.IsNullOrEmpty(directory) && !System.IO.Directory.Exists(directory))
+            {
+                System.IO.Directory.CreateDirectory(directory);
+                AssetDatabase.Refresh();
+            }
+
+            // プレハブ保存
+            bool success;
+            var prefab = PrefabUtility.SaveAsPrefabAsset(go, prefabPath, out success);
+
+            if (!success || prefab == null)
+                return $"Error: Failed to create prefab at {prefabPath}";
+
+            AssetDatabase.SaveAssets();
+            return $"Created prefab: {prefabPath} (from '{go.name}')";
+        }
+        catch (Exception e)
+        {
+            Debug.LogError(e);
+            return $"Error: {e.Message}";
+        }
+    }
 }
