@@ -106,7 +106,7 @@ internal sealed class PrefabCreationTool
             if (target.StartsWith("#"))
             {
                 if (int.TryParse(target.Substring(1), out int id))
-                    go = EditorUtility.InstanceIDToObject(id) as GameObject;
+                    go = EditorUtility.EntityIdToObject(id) as GameObject;
             }
             else
             {
