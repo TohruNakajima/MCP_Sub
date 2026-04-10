@@ -61,7 +61,12 @@ internal sealed class MyNewTool
 スクリプト作成・変更後、Unityエディタをクリックしてコンパイルを実行する。
 
 ### 3. MCPサーバー再起動
-UnityのProject Settings > UnityNaturalMCP からサーバーを再起動し、ツールが登録されたことをログで確認する。
+**自動方式（推奨）**: `RefreshMCPTools` ツールを使用
+```bash
+curl -X POST http://localhost:56780/mcp/ -H "Content-Type: application/json" -d '{"jsonrpc":"2.0","method":"tools/call","params":{"name":"RefreshMCPTools","arguments":{}},"id":1}'
+```
+
+**手動方式**: UnityのProject Settings > UnityNaturalMCP からサーバーを再起動し、ツールが登録されたことをログで確認する。
 
 ## 必須規約
 

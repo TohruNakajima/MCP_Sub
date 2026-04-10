@@ -2,6 +2,13 @@
 
 **サブモジュール**: https://github.com/TohruNakajima/MCP_Sub.git
 
+## 重要ルール
+- ❌ **手動作業の提案・依頼は絶対禁止（全てMCPツールで完結させる）**
+- ❌ **TextMeshPro使用禁止（ユーザー明示指示がない限り旧UI（InputField/Text/Button）使用厳守）**
+- ❌ **バッチビルド実行（-batchmode -quit）絶対禁止（Unity Editor GUI上で手動ビルドのみ許可）**
+- ❌ **APIキー・機密情報のGitコミット絶対禁止（.gitignore必須確認）**
+- ❌ **サブモジュール外でのMCPツール直接編集禁止**
+
 ## Inspector操作 (InspectorTool)
 - Ins_GetSceneHierarchy: シーン階層ツリー取得
 - Ins_GetGameObjectInfo: GameObject詳細情報取得
@@ -70,9 +77,10 @@
 - CreateSlider: Slider作成（完全構造）
 
 ## マテリアル操作 (MaterialConverterTool)
-- UpgradeToURPLit: マテリアルをURP Litにアップグレード
-- ScanBrokenMaterials: 壊れたマテリアルをスキャン
-- ListShaderNames: 使用シェーダー名一覧
+- Material_SetShader: マテリアルのシェーダー変更（テクスチャ保持、Undo対応）
+- Material_UpgradeToURP: マテリアルをURP Litにアップグレード
+- Material_FindProblems: 壊れたマテリアルをスキャン
+- Material_ListShaders: 使用シェーダー名一覧
 
 ## Terrain操作 (TerrainTool)
 - Terrain_GetInfo: Terrain情報取得

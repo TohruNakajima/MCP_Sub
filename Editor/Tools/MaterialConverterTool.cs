@@ -293,6 +293,64 @@ internal sealed class MaterialConverterTool
         return $"{header}Converted: {converted}, Repaired: {repaired}, Skipped: {skipped}, Total: {guids.Length}\n{sb}";
     }
 
+    [McpServerTool, Description("Change a material's shader by name. Preserves texture properties that exist in both old and new shaders. Supports Undo.")]
+    public async ValueTask<string> Material_SetShader(
+        [Description("Path to the Material asset (e.g. 'Assets/Material/MyMaterial.mat').")]
+        string assetPath,
+        [Description("Shader name to set (e.g. 'Universal Render Pipeline/Lit', 'Custom/LeafUltimateWindURP').")]
+        string shaderName)
+    {
+        await UniTask.SwitchToMainThread();
+
+        var mat = AssetDatabase.LoadAssetAtPath<Material>(assetPath);
+        if (mat == null)
+            return $"Material not found: {assetPath}";
+
+        var newShader = Shader.Find(shaderName);
+        if (newShader == null)
+            return $"Shader not found: {shaderName}";
+
+        var oldShaderName = mat.shader != null ? mat.shader.name : "(null)";
+        if (oldShaderName == shaderName)
+            return $"Material already uses shader: {shaderName}";
+
+        // 変更前のテクスチャプロパティを保存
+        var savedTextures = new Dictionary<string, Texture>();
+        var savedFloats = new Dictionary<string, float>();
+        var savedColors = new Dictionary<string, Color>();
+        string[] commonTexProps = { "_MainTex", "_BumpMap", "_OcclusionMap", "_BaseMap",
+            "_EmissionMap", "_MetallicGlossMap", "_SpecGlossMap", "_AlbedoTex",
+            "_NormalMap", "_NormalTex", "_MaskMap" };
+        string[] commonFloatProps = { "_BumpScale", "_OcclusionStrength", "_Metallic",
+            "_Smoothness", "_Cutoff" };
+        string[] commonColorProps = { "_Color", "_BaseColor", "_EmissionColor" };
+
+        foreach (var prop in commonTexProps)
+            if (mat.HasProperty(prop)) { var t = mat.GetTexture(prop); if (t != null) savedTextures[prop] = t; }
+        foreach (var prop in commonFloatProps)
+            if (mat.HasProperty(prop)) savedFloats[prop] = mat.GetFloat(prop);
+        foreach (var prop in commonColorProps)
+            if (mat.HasProperty(prop)) savedColors[prop] = mat.GetColor(prop);
+
+        Undo.RecordObject(mat, $"Change shader to {shaderName}");
+
+        mat.shader = newShader;
+
+        // 新シェーダーに存在するプロパティを復元
+        int restored = 0;
+        foreach (var kv in savedTextures)
+            if (mat.HasProperty(kv.Key)) { mat.SetTexture(kv.Key, kv.Value); restored++; }
+        foreach (var kv in savedFloats)
+            if (mat.HasProperty(kv.Key)) mat.SetFloat(kv.Key, kv.Value);
+        foreach (var kv in savedColors)
+            if (mat.HasProperty(kv.Key)) mat.SetColor(kv.Key, kv.Value);
+
+        EditorUtility.SetDirty(mat);
+        AssetDatabase.SaveAssets();
+
+        return $"Changed shader: {oldShaderName} -> {shaderName}\nTextures restored: {restored}/{savedTextures.Count}";
+    }
+
     [McpServerTool, Description("Scan for broken (pink) or texture-missing materials in a folder.")]
     public async ValueTask<string> Material_FindProblems(
         [Description("Folder path (e.g. 'Assets'). Searches recursively.")]
