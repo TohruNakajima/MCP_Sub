@@ -32,11 +32,31 @@ internal sealed class TerrainTool
                 if (h > maxH) maxH = h;
             }
 
+            // Detail情報
+            var detailInfo = "";
+            var protos = td.detailPrototypes;
+            detailInfo += $"Detail Prototypes: {protos.Length}\n";
+            for (int i = 0; i < protos.Length; i++)
+            {
+                var p = protos[i];
+                detailInfo += $"  [{i}] RenderMode={p.renderMode}, Texture={p.prototypeTexture}, " +
+                              $"UseMesh={p.usePrototypeMesh}, Instancing={p.useInstancing}\n";
+                // DetailLayerの非ゼロピクセル数
+                var layer = td.GetDetailLayer(0, 0, td.detailResolution, td.detailResolution, i);
+                int nonZero = 0;
+                foreach (var v in layer) if (v > 0) nonZero++;
+                detailInfo += $"    DetailLayer non-zero: {nonZero}/{layer.Length}\n";
+            }
+            detailInfo += $"Detail Resolution: {td.detailResolution}\n";
+            detailInfo += $"Detail Distance: {terrain.detailObjectDistance}m, Density: {terrain.detailObjectDensity}\n";
+            detailInfo += $"WavingGrass: strength={td.wavingGrassStrength}, amount={td.wavingGrassAmount}, speed={td.wavingGrassSpeed}";
+
             return $"Terrain: {terrain.name}\n" +
                    $"Size: {td.size.x} x {td.size.z} m (height range: {td.size.y}m)\n" +
                    $"Heightmap Resolution: {td.heightmapResolution}\n" +
                    $"Current Height: min={minH * td.size.y:F1}m, max={maxH * td.size.y:F1}m\n" +
-                   $"Position: {terrain.transform.position}";
+                   $"Position: {terrain.transform.position}\n" +
+                   detailInfo;
         }
         catch (Exception e)
         {

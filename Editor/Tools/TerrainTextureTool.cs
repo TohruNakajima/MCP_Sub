@@ -134,25 +134,73 @@ internal sealed class TerrainTextureTool
             ColorUtility.TryParseHtmlString(color, out Color grassColor);
             ColorUtility.TryParseHtmlString(dryColor, out Color grassDryColor);
 
-            var grassProto = new DetailPrototype();
-            grassProto.renderMode = DetailRenderMode.GrassBillboard;
-            grassProto.healthyColor = grassColor;
-            grassProto.dryColor = grassDryColor;
-            grassProto.minHeight = minHeight;
-            grassProto.maxHeight = maxHeight;
-            grassProto.minWidth = 0.3f;
-            grassProto.maxWidth = 0.8f;
-            grassProto.noiseSpread = 0.3f;
+            // 草テクスチャ: 既存があれば再利用、なければ生成
+            string grassTexPath = "Assets/Terrain/GrassBillboard.png";
+            var grassTex = AssetDatabase.LoadAssetAtPath<Texture2D>(grassTexPath);
+            if (grassTex == null)
+            {
+                var genTex = GenerateGrassBillboardTexture(grassColor);
+                string fullPath = System.IO.Path.GetFullPath(grassTexPath);
+                System.IO.File.WriteAllBytes(fullPath, genTex.EncodeToPNG());
+                AssetDatabase.ImportAsset(grassTexPath, ImportAssetOptions.ForceUpdate);
+                var importer = AssetImporter.GetAtPath(grassTexPath) as TextureImporter;
+                if (importer != null)
+                {
+                    importer.textureType = TextureImporterType.Default;
+                    importer.alphaIsTransparency = true;
+                    importer.alphaSource = TextureImporterAlphaSource.FromInput;
+                    importer.wrapMode = TextureWrapMode.Clamp;
+                    importer.SaveAndReimport();
+                }
+                grassTex = AssetDatabase.LoadAssetAtPath<Texture2D>(grassTexPath);
+            }
 
-            td.detailPrototypes = new DetailPrototype[] { grassProto };
-            td.SetDetailResolution(256, 16);
+            if (grassTex == null)
+                return "Error: Failed to create/load grass texture.";
 
-            // 傾斜・高さベースで草密度を設定
+            // プロトタイプが未設定の場合のみ初期化
+            bool needsInit = td.detailPrototypes.Length == 0
+                          || td.detailPrototypes[0].prototypeTexture == null;
+
+            if (needsInit)
+            {
+                td.SetDetailResolution(256, 16);
+
+                var grassProto = new DetailPrototype();
+                grassProto.renderMode = DetailRenderMode.Grass;
+                grassProto.prototypeTexture = grassTex;
+                grassProto.healthyColor = grassColor;
+                grassProto.dryColor = grassDryColor;
+                grassProto.minHeight = minHeight;
+                grassProto.maxHeight = maxHeight;
+                grassProto.minWidth = 0.3f;
+                grassProto.maxWidth = 0.8f;
+                grassProto.noiseSpread = 0.3f;
+                grassProto.useInstancing = false;
+                grassProto.usePrototypeMesh = false;
+
+                td.detailPrototypes = new DetailPrototype[] { grassProto };
+                td.wavingGrassStrength = 0.5f;
+                td.wavingGrassAmount = 0.3f;
+                td.wavingGrassSpeed = 0.5f;
+                td.wavingGrassTint = grassColor;
+
+                td.RefreshPrototypes();
+
+                // プロトタイプ設定後に一度保存してから密度マップを書く
+                EditorUtility.SetDirty(td);
+                AssetDatabase.SaveAssets();
+
+                Debug.Log("[Terrain_AddGrass] Initialized DetailPrototype");
+            }
+
+            // 密度マップ生成
             int detailRes = td.detailResolution;
             int[,] grassMap = new int[detailRes, detailRes];
 
             float[,] heights = td.GetHeights(0, 0, td.heightmapResolution, td.heightmapResolution);
 
+            int filledCount = 0;
             for (int z = 0; z < detailRes; z++)
             {
                 for (int x = 0; x < detailRes; x++)
@@ -171,24 +219,77 @@ internal sealed class TerrainTextureTool
                     {
                         float slopeFactor = 1f - (slope / maxSlope);
                         float noise = Mathf.PerlinNoise(normX * 10f, normZ * 10f);
-                        grassMap[z, x] = Mathf.RoundToInt(density * slopeFactor * noise);
+                        grassMap[z, x] = Mathf.Clamp(Mathf.RoundToInt(density * slopeFactor * noise), 0, 16);
+                        if (grassMap[z, x] > 0) filledCount++;
                     }
                 }
             }
 
-            Undo.RegisterCompleteObjectUndo(td, "Terrain AddGrass");
+            Debug.Log($"[Terrain_AddGrass] DetailLayer filled: {filledCount}/{detailRes * detailRes}");
+
             td.SetDetailLayer(0, 0, 0, grassMap);
 
             // 草の描画距離設定
-            terrain.detailObjectDistance = 80f;
+            terrain.detailObjectDistance = 120f;
             terrain.detailObjectDensity = 1f;
 
-            return $"Grass added: density={density}, height={minHeight}-{maxHeight}m, maxSlope={maxSlope}°";
+            // TerrainData更新を確定
+            EditorUtility.SetDirty(td);
+            terrain.Flush();
+
+            // 確認ログ
+            var protos = td.detailPrototypes;
+            Debug.Log($"[Terrain_AddGrass] Prototypes={protos.Length}, " +
+                      $"Tex={protos[0].prototypeTexture}, Mode={protos[0].renderMode}");
+
+            return $"Grass added: density={density}, height={minHeight}-{maxHeight}m, maxSlope={maxSlope}°, " +
+                   $"texture={grassTex.name}, resolution={td.detailResolution}";
         }
         catch (Exception e)
         {
             Debug.LogError(e);
             throw;
+        }
+    }
+
+    /// <summary>草ビルボード用テクスチャをプロシージャル生成</summary>
+    private static Texture2D GenerateGrassBillboardTexture(Color baseColor)
+    {
+        int w = 64, h = 128;
+        var tex = new Texture2D(w, h, TextureFormat.RGBA32, false);
+        var pixels = new Color[w * h];
+
+        for (int i = 0; i < pixels.Length; i++)
+            pixels[i] = Color.clear;
+
+        DrawGrassBlade(pixels, w, h, w / 2, 0, h, 3, baseColor, 0f);
+        DrawGrassBlade(pixels, w, h, w / 3, 0, (int)(h * 0.85f), 2, baseColor * 0.85f, -0.15f);
+        DrawGrassBlade(pixels, w, h, w * 2 / 3, 0, (int)(h * 0.9f), 2, baseColor * 0.9f, 0.1f);
+
+        tex.SetPixels(pixels);
+        tex.Apply();
+        tex.filterMode = FilterMode.Bilinear;
+        tex.wrapMode = TextureWrapMode.Clamp;
+        return tex;
+    }
+
+    private static void DrawGrassBlade(Color[] pixels, int texW, int texH,
+        int centerX, int bottomY, int topY, int halfWidth, Color color, float lean)
+    {
+        for (int y = bottomY; y < topY; y++)
+        {
+            float t = (float)(y - bottomY) / (topY - bottomY);
+            int w = Mathf.Max(1, Mathf.RoundToInt(halfWidth * (1f - t * 0.8f)));
+            int cx = centerX + Mathf.RoundToInt(lean * (y - bottomY));
+            Color c = Color.Lerp(color * 0.7f, color, t);
+            c.a = 1f;
+
+            for (int dx = -w; dx <= w; dx++)
+            {
+                int px = cx + dx;
+                if (px >= 0 && px < texW && y >= 0 && y < texH)
+                    pixels[y * texW + px] = c;
+            }
         }
     }
 
