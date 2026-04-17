@@ -132,5 +132,6 @@
 - RefreshAssets (RefreshAssetsTool): アセット更新
 - RefreshMCPTools (RefreshMCPToolsTool): MCPツール再登録＋サーバー再起動
 - TVE_ConvertPrefab (TVEAssetConverterTool): TheVisualEngineでプレハブ変換
+- Scene_SetAllRendererProperty (SceneOptimizerTool): アクティブシーンの全 Renderer に対してプロパティを一括設定（lightProbeUsage / reflectionProbeUsage / receiveShadows / motionVectors / shadowCastingMode / allowOcclusionWhenDynamic / staticShadowCaster）
 
 新規ツール作成時は必ずこの一覧に追記すること
