@@ -133,5 +133,6 @@
 - RefreshMCPTools (RefreshMCPToolsTool): MCPツール再登録＋サーバー再起動
 - TVE_ConvertPrefab (TVEAssetConverterTool): TheVisualEngineでプレハブ変換
 - Scene_SetAllRendererProperty (SceneOptimizerTool): アクティブシーンの全 Renderer に対してプロパティを一括設定（lightProbeUsage / reflectionProbeUsage / receiveShadows / motionVectors / shadowCastingMode / allowOcclusionWhenDynamic / staticShadowCaster）
+- Prefab_SetComponentObjectRef (PrefabEditorTool): プレハブアセットの指定コンポーネントの ObjectReference 型プロパティ (AudioClip/Material/Texture 等) を別アセット参照に書き換える（PrefabUtility 経由）
 
 新規ツール作成時は必ずこの一覧に追記すること
