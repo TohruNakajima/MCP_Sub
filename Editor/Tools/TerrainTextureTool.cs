@@ -371,4 +371,268 @@ internal sealed class TerrainTextureTool
         AssetDatabase.SaveAssets();
         return layer;
     }
+
+    // ==================== Detail Paint Tools ====================
+
+    [McpServerTool, Description("List all detail prototypes registered on the active terrain. Shows index, texture name, renderMode, size, and color.")]
+    public async ValueTask<string> Terrain_ListDetails()
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return "Error: No active Terrain found.";
+            var td = terrain.terrainData;
+            var protos = td.detailPrototypes;
+            if (protos.Length == 0) return "No detail prototypes registered.";
+
+            var sb = new System.Text.StringBuilder();
+            sb.AppendLine($"Detail Prototypes: {protos.Length}, Resolution: {td.detailResolution}");
+            for (int i = 0; i < protos.Length; i++)
+            {
+                var p = protos[i];
+                int[,] layer = td.GetDetailLayer(0, 0, td.detailResolution, td.detailResolution, i);
+                int nonZero = 0, maxVal = 0;
+                for (int z = 0; z < td.detailResolution; z++)
+                    for (int x = 0; x < td.detailResolution; x++)
+                    {
+                        if (layer[z, x] > 0) nonZero++;
+                        if (layer[z, x] > maxVal) maxVal = layer[z, x];
+                    }
+                sb.AppendLine($"  [{i}] tex={p.prototypeTexture?.name ?? "null"}, mode={p.renderMode}, H={p.minHeight}-{p.maxHeight}, W={p.minWidth}-{p.maxWidth}, healthy={p.healthyColor}, dry={p.dryColor}, filled={nonZero}/{td.detailResolution * td.detailResolution}, maxDensity={maxVal}");
+            }
+            return sb.ToString();
+        }
+        catch (Exception e) { Debug.LogError(e); throw; }
+    }
+
+    [McpServerTool, Description("Paint detail (grass/flower) at a world position with a circular brush. Like the Paint Detail tool in Unity Editor.")]
+    public async ValueTask<string> Terrain_PaintDetail(
+        [Description("Detail prototype index (use Terrain_ListDetails to see available indices)")]
+        int detailIndex,
+        [Description("World X position to paint at")]
+        float worldX,
+        [Description("World Z position to paint at")]
+        float worldZ,
+        [Description("Brush radius in meters (default 10)")]
+        float radius = 10f,
+        [Description("Density value (1-16, default 8)")]
+        int density = 8,
+        [Description("Brush falloff: 1.0=hard edge, 0.0=full falloff (default 0.5)")]
+        float hardness = 0.5f)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return "Error: No active Terrain found.";
+            var td = terrain.terrainData;
+            var protos = td.detailPrototypes;
+            if (detailIndex < 0 || detailIndex >= protos.Length)
+                return $"Error: detailIndex {detailIndex} out of range (0-{protos.Length - 1}).";
+
+            int detailRes = td.detailResolution;
+            var tPos = terrain.transform.position;
+
+            // ワールド座標→Detail座標
+            float normX = (worldX - tPos.x) / td.size.x;
+            float normZ = (worldZ - tPos.z) / td.size.z;
+            int centerX = Mathf.RoundToInt(normX * detailRes);
+            int centerZ = Mathf.RoundToInt(normZ * detailRes);
+            float radiusInDetail = (radius / td.size.x) * detailRes;
+
+            int minX = Mathf.Max(0, Mathf.FloorToInt(centerX - radiusInDetail));
+            int maxX = Mathf.Min(detailRes - 1, Mathf.CeilToInt(centerX + radiusInDetail));
+            int minZ = Mathf.Max(0, Mathf.FloorToInt(centerZ - radiusInDetail));
+            int maxZ = Mathf.Min(detailRes - 1, Mathf.CeilToInt(centerZ + radiusInDetail));
+
+            int width = maxX - minX + 1;
+            int height = maxZ - minZ + 1;
+            if (width <= 0 || height <= 0)
+                return "Error: Paint area is outside terrain bounds.";
+
+            int[,] map = td.GetDetailLayer(minX, minZ, width, height, detailIndex);
+            int painted = 0;
+
+            for (int z = 0; z < height; z++)
+            {
+                for (int x = 0; x < width; x++)
+                {
+                    float dx = (minX + x) - centerX;
+                    float dz = (minZ + z) - centerZ;
+                    float dist = Mathf.Sqrt(dx * dx + dz * dz);
+
+                    if (dist <= radiusInDetail)
+                    {
+                        float t = dist / radiusInDetail;
+                        float falloff = Mathf.Lerp(1f, 0f, Mathf.Max(0f, (t - hardness) / (1f - hardness + 0.001f)));
+                        int val = Mathf.RoundToInt(density * falloff);
+                        if (val > map[z, x])
+                        {
+                            map[z, x] = Mathf.Clamp(val, 0, 16);
+                            painted++;
+                        }
+                    }
+                }
+            }
+
+            td.SetDetailLayer(minX, minZ, detailIndex, map);
+            EditorUtility.SetDirty(td);
+            terrain.Flush();
+
+            return $"Painted detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}) at ({worldX},{worldZ}), radius={radius}m, density={density}, painted={painted} cells.";
+        }
+        catch (Exception e) { Debug.LogError(e); throw; }
+    }
+
+    [McpServerTool, Description("Fill entire terrain with a detail layer using Perlin noise pattern. Efficient way to cover the whole terrain with grass/flowers.")]
+    public async ValueTask<string> Terrain_FillDetail(
+        [Description("Detail prototype index (use Terrain_ListDetails to see available indices)")]
+        int detailIndex,
+        [Description("Max density (1-16, default 8)")]
+        int density = 8,
+        [Description("Noise frequency: higher=more varied (default 8)")]
+        float noiseFreq = 8f,
+        [Description("Density threshold: lower=more coverage (0-1, default 0.2)")]
+        float threshold = 0.2f,
+        [Description("Random seed offset for unique patterns per layer (default 0)")]
+        float seedOffset = 0f,
+        [Description("If true, boost density near specified world positions (cowBoostPositions format: 'x1,z1;x2,z2;...')")]
+        string boostPositions = "")
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return "Error: No active Terrain found.";
+            var td = terrain.terrainData;
+            var protos = td.detailPrototypes;
+            if (detailIndex < 0 || detailIndex >= protos.Length)
+                return $"Error: detailIndex {detailIndex} out of range (0-{protos.Length - 1}).";
+
+            var tPos = terrain.transform.position;
+            int detailRes = td.detailResolution;
+
+            // ブースト位置パース
+            var boostNorms = new System.Collections.Generic.List<Vector2>();
+            if (!string.IsNullOrEmpty(boostPositions))
+            {
+                foreach (var pair in boostPositions.Split(';'))
+                {
+                    var parts = pair.Trim().Split(',');
+                    if (parts.Length == 2 && float.TryParse(parts[0], out float bx) && float.TryParse(parts[1], out float bz))
+                    {
+                        boostNorms.Add(new Vector2(
+                            (bx - tPos.x) / td.size.x,
+                            (bz - tPos.z) / td.size.z));
+                    }
+                }
+            }
+
+            int[,] map = new int[detailRes, detailRes];
+            int filled = 0;
+
+            for (int z = 0; z < detailRes; z++)
+            {
+                for (int x = 0; x < detailRes; x++)
+                {
+                    float nx = (float)x / detailRes;
+                    float nz = (float)z / detailRes;
+
+                    float n1 = Mathf.PerlinNoise(nx * noiseFreq + seedOffset, nz * noiseFreq + seedOffset);
+                    float n2 = Mathf.PerlinNoise(nx * noiseFreq * 2f + seedOffset + 100f, nz * noiseFreq * 2f + seedOffset + 100f);
+                    float combined = n1 * 0.6f + n2 * 0.4f;
+
+                    // ブースト計算
+                    float boost = 0f;
+                    foreach (var bp in boostNorms)
+                    {
+                        float d = Vector2.Distance(new Vector2(nx, nz), bp);
+                        if (d < 0.25f) boost = Mathf.Max(boost, Mathf.SmoothStep(1f, 0f, d / 0.25f));
+                    }
+
+                    int maxD = Mathf.RoundToInt(Mathf.Lerp(density, Mathf.Min(16, density * 2), boost));
+
+                    if (combined > threshold)
+                    {
+                        float factor = (combined - threshold) / (1f - threshold);
+                        int val = Mathf.RoundToInt(maxD * factor);
+                        if (boost > 0.5f && val < 3) val = 3;
+                        map[z, x] = Mathf.Clamp(val, 0, 16);
+                        if (map[z, x] > 0) filled++;
+                    }
+                    else if (boost > 0.3f)
+                    {
+                        map[z, x] = Mathf.RoundToInt(2 * boost);
+                        if (map[z, x] > 0) filled++;
+                    }
+                }
+            }
+
+            td.SetDetailLayer(0, 0, detailIndex, map);
+            EditorUtility.SetDirty(td);
+            terrain.Flush();
+
+            return $"Filled detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}): {filled}/{detailRes * detailRes} cells, density={density}, freq={noiseFreq}, threshold={threshold}.";
+        }
+        catch (Exception e) { Debug.LogError(e); throw; }
+    }
+
+    [McpServerTool, Description("Clear a detail layer (set all density to 0) on the active terrain.")]
+    public async ValueTask<string> Terrain_ClearDetail(
+        [Description("Detail prototype index to clear (-1 to clear all layers)")]
+        int detailIndex = -1)
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return "Error: No active Terrain found.";
+            var td = terrain.terrainData;
+            int detailRes = td.detailResolution;
+            int[,] emptyMap = new int[detailRes, detailRes];
+
+            int cleared = 0;
+            if (detailIndex == -1)
+            {
+                for (int i = 0; i < td.detailPrototypes.Length; i++)
+                {
+                    td.SetDetailLayer(0, 0, i, emptyMap);
+                    cleared++;
+                }
+            }
+            else
+            {
+                if (detailIndex < 0 || detailIndex >= td.detailPrototypes.Length)
+                    return $"Error: detailIndex {detailIndex} out of range.";
+                td.SetDetailLayer(0, 0, detailIndex, emptyMap);
+                cleared = 1;
+            }
+
+            EditorUtility.SetDirty(td);
+            terrain.Flush();
+            return $"Cleared {cleared} detail layer(s).";
+        }
+        catch (Exception e) { Debug.LogError(e); throw; }
+    }
+
+    [McpServerTool, Description("Save terrain data to disk with ForceReserialize to ensure all changes persist across domain reloads.")]
+    public async ValueTask<string> Terrain_SaveData()
+    {
+        try
+        {
+            await UniTask.SwitchToMainThread();
+            var terrain = Terrain.activeTerrain;
+            if (terrain == null) return "Error: No active Terrain found.";
+            var td = terrain.terrainData;
+            string tdPath = AssetDatabase.GetAssetPath(td);
+
+            EditorUtility.SetDirty(td);
+            AssetDatabase.SaveAssetIfDirty(td);
+            AssetDatabase.ForceReserializeAssets(new[] { tdPath }, ForceReserializeAssetsOptions.ReserializeAssetsAndMetadata);
+
+            return $"Terrain data saved and force-reserialized: {tdPath}";
+        }
+        catch (Exception e) { Debug.LogError(e); throw; }
+    }
 }
