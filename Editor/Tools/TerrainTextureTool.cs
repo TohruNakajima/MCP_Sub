@@ -407,7 +407,7 @@ internal sealed class TerrainTextureTool
         catch (Exception e) { Debug.LogError(e); throw; }
     }
 
-    [McpServerTool, Description("Paint detail (grass/flower) at a world position with a circular brush. Like the Paint Detail tool in Unity Editor.")]
+    [McpServerTool, Description("Paint detail (grass/flower) at a world position with a circular brush. Like the Paint Detail tool in Unity Editor. Uses CoverageMode (0-255 density range).")]
     public async ValueTask<string> Terrain_PaintDetail(
         [Description("Detail prototype index (use Terrain_ListDetails to see available indices)")]
         int detailIndex,
@@ -417,8 +417,8 @@ internal sealed class TerrainTextureTool
         float worldZ,
         [Description("Brush radius in meters (default 10)")]
         float radius = 10f,
-        [Description("Density value (1-16, default 8)")]
-        int density = 8,
+        [Description("Density value (0-255 for CoverageMode, default 200)")]
+        int density = 200,
         [Description("Brush falloff: 1.0=hard edge, 0.0=full falloff (default 0.5)")]
         float hardness = 0.5f)
     {
@@ -470,28 +470,33 @@ internal sealed class TerrainTextureTool
                         int val = Mathf.RoundToInt(density * falloff);
                         if (val > map[z, x])
                         {
-                            map[z, x] = Mathf.Clamp(val, 0, 16);
+                            map[z, x] = Mathf.Clamp(val, 0, 255);
                             painted++;
                         }
                     }
                 }
             }
 
-            Undo.RegisterCompleteObjectUndo(td, $"Paint Detail [{detailIndex}]");
-            td.SetDetailLayer(minX, minZ, detailIndex, map);
-            ForceRefreshTerrainDetail(terrain, td);
+            // 全域密度マップを構築してSerializedPropertyで書き込む
+            int[,] fullMap = td.GetDetailLayer(0, 0, detailRes, detailRes, detailIndex);
+            for (int z = 0; z < height; z++)
+                for (int x = 0; x < width; x++)
+                    if (map[z, x] > fullMap[minZ + z, minX + x])
+                        fullMap[minZ + z, minX + x] = map[z, x];
+
+            WriteDetailCoverageSerialized(td, terrain, detailIndex, fullMap, detailRes);
 
             return $"Painted detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}) at ({worldX},{worldZ}), radius={radius}m, density={density}, painted={painted} cells.";
         }
         catch (Exception e) { Debug.LogError(e); throw; }
     }
 
-    [McpServerTool, Description("Fill entire terrain with a detail layer using Perlin noise pattern. Efficient way to cover the whole terrain with grass/flowers.")]
+    [McpServerTool, Description("Fill entire terrain with a detail layer using Perlin noise pattern. Efficient way to cover the whole terrain with grass/flowers. Uses CoverageMode (0-255 density range).")]
     public async ValueTask<string> Terrain_FillDetail(
         [Description("Detail prototype index (use Terrain_ListDetails to see available indices)")]
         int detailIndex,
-        [Description("Max density (1-16, default 8)")]
-        int density = 8,
+        [Description("Max density (0-255 for CoverageMode, default 200)")]
+        int density = 200,
         [Description("Noise frequency: higher=more varied (default 8)")]
         float noiseFreq = 8f,
         [Description("Density threshold: lower=more coverage (0-1, default 0.2)")]
@@ -552,27 +557,25 @@ internal sealed class TerrainTextureTool
                         if (d < 0.25f) boost = Mathf.Max(boost, Mathf.SmoothStep(1f, 0f, d / 0.25f));
                     }
 
-                    int maxD = Mathf.RoundToInt(Mathf.Lerp(density, Mathf.Min(16, density * 2), boost));
+                    int maxD = Mathf.RoundToInt(Mathf.Lerp(density, Mathf.Min(255, density + 55), boost));
 
                     if (combined > threshold)
                     {
                         float factor = (combined - threshold) / (1f - threshold);
                         int val = Mathf.RoundToInt(maxD * factor);
-                        if (boost > 0.5f && val < 3) val = 3;
-                        map[z, x] = Mathf.Clamp(val, 0, 16);
+                        if (boost > 0.5f && val < 50) val = 50;
+                        map[z, x] = Mathf.Clamp(val, 0, 255);
                         if (map[z, x] > 0) filled++;
                     }
                     else if (boost > 0.3f)
                     {
-                        map[z, x] = Mathf.RoundToInt(2 * boost);
+                        map[z, x] = Mathf.RoundToInt(30 * boost);
                         if (map[z, x] > 0) filled++;
                     }
                 }
             }
 
-            Undo.RegisterCompleteObjectUndo(td, $"Fill Detail [{detailIndex}]");
-            td.SetDetailLayer(0, 0, detailIndex, map);
-            ForceRefreshTerrainDetail(terrain, td);
+            WriteDetailCoverageSerialized(td, terrain, detailIndex, map, detailRes);
 
             return $"Filled detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}): {filled}/{detailRes * detailRes} cells, density={density}, freq={noiseFreq}, threshold={threshold}.";
         }
@@ -593,13 +596,12 @@ internal sealed class TerrainTextureTool
             int detailRes = td.detailResolution;
             int[,] emptyMap = new int[detailRes, detailRes];
 
-            Undo.RegisterCompleteObjectUndo(td, "Clear Detail");
             int cleared = 0;
             if (detailIndex == -1)
             {
                 for (int i = 0; i < td.detailPrototypes.Length; i++)
                 {
-                    td.SetDetailLayer(0, 0, i, emptyMap);
+                    WriteDetailCoverageSerialized(td, terrain, i, emptyMap, detailRes);
                     cleared++;
                 }
             }
@@ -607,11 +609,10 @@ internal sealed class TerrainTextureTool
             {
                 if (detailIndex < 0 || detailIndex >= td.detailPrototypes.Length)
                     return $"Error: detailIndex {detailIndex} out of range.";
-                td.SetDetailLayer(0, 0, detailIndex, emptyMap);
+                WriteDetailCoverageSerialized(td, terrain, detailIndex, emptyMap, detailRes);
                 cleared = 1;
             }
 
-            ForceRefreshTerrainDetail(terrain, td);
             return $"Cleared {cleared} detail layer(s).";
         }
         catch (Exception e) { Debug.LogError(e); throw; }
@@ -638,34 +639,65 @@ internal sealed class TerrainTextureTool
     }
 
     /// <summary>
-    /// SetDetailLayer後にTerrainのレンダリングキャッシュを強制更新する。
-    /// EditorのPaint Detailツールと同等の更新処理を行う。
+    /// SerializedPropertyで直接coverageに書き込む。
+    /// Unity 6 CoverageModeではSetDetailLayerが描画キャッシュを更新しないため、
+    /// SerializedObject経由で書き込む必要がある。
     /// </summary>
-    private static void ForceRefreshTerrainDetail(Terrain terrain, TerrainData td)
+    private static void WriteDetailCoverageSerialized(
+        TerrainData td, Terrain terrain, int detailIndex, int[,] densityMap, int detailRes)
     {
-        EditorUtility.SetDirty(td);
-        td.RefreshPrototypes();
+        var so = new SerializedObject(td);
+        so.Update();
 
-        // TerrainDataを一時的に外して再設定 → 全内部キャッシュを再構築
-        var savedTd = terrain.terrainData;
-        terrain.terrainData = null;
-        terrain.terrainData = savedTd;
+        var patches = so.FindProperty("m_DetailDatabase.m_Patches");
+        int patchesPerRow = detailRes / 16; // パッチ内16x16ピクセル
 
-        // Foliage描画をリセット
-        terrain.drawTreesAndFoliage = false;
-        terrain.drawTreesAndFoliage = true;
-
-        terrain.Flush();
-
-        // TerrainColliderも再設定
-        var collider = terrain.GetComponent<TerrainCollider>();
-        if (collider != null)
+        for (int pi = 0; pi < patches.arraySize; pi++)
         {
-            collider.terrainData = null;
-            collider.terrainData = savedTd;
+            var patch = patches.GetArrayElementAtIndex(pi);
+            var coverage = patch.FindPropertyRelative("coverage");
+            var layerIndices = patch.FindPropertyRelative("layerIndices");
+            if (coverage == null || layerIndices == null) continue;
+
+            // このパッチでdetailIndexが何番目のレイヤーか
+            int layerSlot = -1;
+            for (int li = 0; li < Mathf.Min(layerIndices.arraySize, 64); li++)
+            {
+                if (layerIndices.GetArrayElementAtIndex(li).intValue == detailIndex)
+                {
+                    layerSlot = li;
+                    break;
+                }
+            }
+            if (layerSlot < 0) continue;
+
+            int patchX = pi % patchesPerRow;
+            int patchZ = pi / patchesPerRow;
+            int baseOffset = layerSlot * 256;
+
+            for (int pz = 0; pz < 16; pz++)
+            {
+                for (int px = 0; px < 16; px++)
+                {
+                    int mapX = patchX * 16 + px;
+                    int mapZ = patchZ * 16 + pz;
+                    if (mapX >= detailRes || mapZ >= detailRes) continue;
+
+                    int idx = baseOffset + pz * 16 + px;
+                    if (idx < coverage.arraySize)
+                    {
+                        coverage.GetArrayElementAtIndex(idx).intValue =
+                            Mathf.Clamp(densityMap[mapZ, mapX], 0, 255);
+                    }
+                }
+            }
         }
 
+        so.ApplyModifiedProperties();
+        EditorUtility.SetDirty(td);
+        terrain.enabled = false;
+        terrain.enabled = true;
+        terrain.Flush();
         InternalEditorUtility.RepaintAllViews();
-        SceneView.RepaintAll();
     }
 }
