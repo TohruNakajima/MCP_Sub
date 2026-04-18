@@ -640,24 +640,28 @@ internal sealed class TerrainTextureTool
     /// </summary>
     private static void ForceRefreshTerrainDetail(Terrain terrain, TerrainData td)
     {
-        // TerrainDataをDirtyに
         EditorUtility.SetDirty(td);
-
-        // プロトタイプをリフレッシュ
         td.RefreshPrototypes();
 
-        // Terrainの描画キャッシュをフラッシュ
+        // TerrainDataを一時的に外して再設定 → 全内部キャッシュを再構築
+        var savedTd = terrain.terrainData;
+        terrain.terrainData = null;
+        terrain.terrainData = savedTd;
+
+        // Foliage描画をリセット
+        terrain.drawTreesAndFoliage = false;
+        terrain.drawTreesAndFoliage = true;
+
         terrain.Flush();
 
-        // DetailDensityを一時変更してレンダリングキャッシュ再構築を強制
-        float savedDensity = terrain.detailObjectDensity;
-        terrain.detailObjectDensity = 0f;
-        terrain.detailObjectDensity = savedDensity;
+        // TerrainColliderも再設定
+        var collider = terrain.GetComponent<TerrainCollider>();
+        if (collider != null)
+        {
+            collider.terrainData = null;
+            collider.terrainData = savedTd;
+        }
 
-        // もう一度フラッシュ
-        terrain.Flush();
-
-        // 全ビューを再描画
         InternalEditorUtility.RepaintAllViews();
         SceneView.RepaintAll();
     }
