@@ -477,6 +477,7 @@ internal sealed class TerrainTextureTool
                 }
             }
 
+            Undo.RegisterCompleteObjectUndo(td, $"Paint Detail [{detailIndex}]");
             td.SetDetailLayer(minX, minZ, detailIndex, map);
             ForceRefreshTerrainDetail(terrain, td);
 
@@ -569,6 +570,7 @@ internal sealed class TerrainTextureTool
                 }
             }
 
+            Undo.RegisterCompleteObjectUndo(td, $"Fill Detail [{detailIndex}]");
             td.SetDetailLayer(0, 0, detailIndex, map);
             ForceRefreshTerrainDetail(terrain, td);
 
@@ -591,6 +593,7 @@ internal sealed class TerrainTextureTool
             int detailRes = td.detailResolution;
             int[,] emptyMap = new int[detailRes, detailRes];
 
+            Undo.RegisterCompleteObjectUndo(td, "Clear Detail");
             int cleared = 0;
             if (detailIndex == -1)
             {
