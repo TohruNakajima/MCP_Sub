@@ -5,6 +5,7 @@ using Cysharp.Threading.Tasks;
 using ModelContextProtocol.Server;
 using UnityEngine;
 using UnityEditor;
+using UnityEditorInternal;
 
 /// <summary>
 /// Terrainテクスチャ・草・ディテール操作用MCPツール。
@@ -477,8 +478,7 @@ internal sealed class TerrainTextureTool
             }
 
             td.SetDetailLayer(minX, minZ, detailIndex, map);
-            EditorUtility.SetDirty(td);
-            terrain.Flush();
+            ForceRefreshTerrainDetail(terrain, td);
 
             return $"Painted detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}) at ({worldX},{worldZ}), radius={radius}m, density={density}, painted={painted} cells.";
         }
@@ -570,8 +570,7 @@ internal sealed class TerrainTextureTool
             }
 
             td.SetDetailLayer(0, 0, detailIndex, map);
-            EditorUtility.SetDirty(td);
-            terrain.Flush();
+            ForceRefreshTerrainDetail(terrain, td);
 
             return $"Filled detail[{detailIndex}] ({protos[detailIndex].prototypeTexture?.name}): {filled}/{detailRes * detailRes} cells, density={density}, freq={noiseFreq}, threshold={threshold}.";
         }
@@ -609,8 +608,7 @@ internal sealed class TerrainTextureTool
                 cleared = 1;
             }
 
-            EditorUtility.SetDirty(td);
-            terrain.Flush();
+            ForceRefreshTerrainDetail(terrain, td);
             return $"Cleared {cleared} detail layer(s).";
         }
         catch (Exception e) { Debug.LogError(e); throw; }
@@ -634,5 +632,33 @@ internal sealed class TerrainTextureTool
             return $"Terrain data saved and force-reserialized: {tdPath}";
         }
         catch (Exception e) { Debug.LogError(e); throw; }
+    }
+
+    /// <summary>
+    /// SetDetailLayer後にTerrainのレンダリングキャッシュを強制更新する。
+    /// EditorのPaint Detailツールと同等の更新処理を行う。
+    /// </summary>
+    private static void ForceRefreshTerrainDetail(Terrain terrain, TerrainData td)
+    {
+        // TerrainDataをDirtyに
+        EditorUtility.SetDirty(td);
+
+        // プロトタイプをリフレッシュ
+        td.RefreshPrototypes();
+
+        // Terrainの描画キャッシュをフラッシュ
+        terrain.Flush();
+
+        // DetailDensityを一時変更してレンダリングキャッシュ再構築を強制
+        float savedDensity = terrain.detailObjectDensity;
+        terrain.detailObjectDensity = 0f;
+        terrain.detailObjectDensity = savedDensity;
+
+        // もう一度フラッシュ
+        terrain.Flush();
+
+        // 全ビューを再描画
+        InternalEditorUtility.RepaintAllViews();
+        SceneView.RepaintAll();
     }
 }
