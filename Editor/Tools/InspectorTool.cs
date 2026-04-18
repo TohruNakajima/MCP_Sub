@@ -975,7 +975,9 @@ internal sealed class InspectorTool
             }
 
             // Determine if this is an asset path or a scene GameObject reference
-            if (value.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase))
+            // Assets/ および Packages/ (Package Manager 管理下のアセット) の両方に対応
+            if (value.StartsWith("Assets/", StringComparison.OrdinalIgnoreCase) ||
+                value.StartsWith("Packages/", StringComparison.OrdinalIgnoreCase))
             {
                 // Asset reference - check if this is a sub-asset reference (e.g., "path/to/asset.mixer:BGM")
                 if (value.Contains(":"))
